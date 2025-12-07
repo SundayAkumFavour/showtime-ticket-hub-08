@@ -1,20 +1,27 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { TicketTierCard } from '@/components/TicketTierCard';
 import { Button } from '@/components/ui/button';
-import { mockShows } from '@/data/mockShows';
+import { useShow } from '@/hooks/useShows';
+import { useAuth } from '@/hooks/useAuth';
+import { usePaystack } from '@/hooks/usePaystack';
 import { getShowStatus } from '@/types/show';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Clock, ArrowLeft, ShoppingCart, Ticket } from 'lucide-react';
+import { MapPin, Calendar, Clock, ArrowLeft, ShoppingCart, Ticket, Loader2 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 
 const ShowDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const show = mockShows.find((s) => s.id === id);
+  const navigate = useNavigate();
+  const { data: show, isLoading } = useShow(id || '');
+  const { user, session } = useAuth();
+  const { initializePayment } = usePaystack();
+  
   const [selectedTiers, setSelectedTiers] = useState<Record<string, number>>({});
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const status = show ? getShowStatus(show) : 'passed';
   const isAvailable = status === 'available';
@@ -38,14 +45,67 @@ const ShowDetail = () => {
     }));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (totalItems === 0) {
       toast.error('Please select at least one ticket');
       return;
     }
-    // TODO: Integrate with Paystack
-    toast.success('Redirecting to payment...');
+
+    if (!user || !session) {
+      toast.error('Please log in to purchase tickets');
+      navigate('/auth');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Get the first selected tier (for now, one tier at a time)
+      const selectedTierId = Object.keys(selectedTiers).find((id) => selectedTiers[id] > 0);
+      if (!selectedTierId || !show) {
+        toast.error('Please select a ticket tier');
+        return;
+      }
+
+      const quantity = selectedTiers[selectedTierId];
+      const tier = show.ticketTiers.find((t) => t.id === selectedTierId);
+      if (!tier) {
+        toast.error('Invalid ticket tier');
+        return;
+      }
+
+      const amount = tier.price * quantity * 1.05; // Including 5% service fee
+
+      const result = await initializePayment({
+        email: user.email || '',
+        amount,
+        showId: show.id,
+        ticketTierId: selectedTierId,
+        quantity,
+      });
+
+      if (result?.authorization_url) {
+        window.location.href = result.authorization_url;
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error('Failed to initialize payment');
+    } finally {
+      setIsProcessing(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 md:pt-28 pb-16 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!show) {
     return (
@@ -226,7 +286,7 @@ const ShowDetail = () => {
                         </span>
                       </div>
                       <div className="flex justify-between mt-2">
-                        <span className="text-muted-foreground">Service Fee</span>
+                        <span className="text-muted-foreground">Service Fee (5%)</span>
                         <span className="text-foreground font-medium">
                           ₦{Math.round(totalAmount * 0.05).toLocaleString()}
                         </span>
@@ -248,11 +308,20 @@ const ShowDetail = () => {
                   variant="gradient"
                   size="lg"
                   className="w-full mt-6"
-                  disabled={totalItems === 0 || !isAvailable}
+                  disabled={totalItems === 0 || !isAvailable || isProcessing}
                   onClick={handleCheckout}
                 >
-                  <Ticket className="w-5 h-5 mr-2" />
-                  {isAvailable ? 'Proceed to Payment' : 'Currently Unavailable'}
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Ticket className="w-5 h-5 mr-2" />
+                      {isAvailable ? 'Proceed to Payment' : 'Currently Unavailable'}
+                    </>
+                  )}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center mt-4">

@@ -2,54 +2,34 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, Clock, MapPin, Download, QrCode } from 'lucide-react';
+import { Ticket, Calendar, Clock, MapPin, Download, QrCode, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-// Mock orders for demo
-const mockOrders = [
-  {
-    id: '1',
-    reference: 'SH-2025-001234',
-    show: {
-      title: 'Afrobeats Fusion Night',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80',
-      venue: 'Eko Convention Center',
-      location: 'Lagos, Nigeria',
-      date: '2025-01-15T20:00:00',
-      time: '8:00 PM',
-    },
-    tier: 'Golden',
-    quantity: 2,
-    totalAmount: 73500,
-    paymentStatus: 'completed',
-    createdAt: '2024-12-05T10:30:00',
-  },
-  {
-    id: '2',
-    reference: 'SH-2025-001235',
-    show: {
-      title: 'Comedy Night Live',
-      image: 'https://images.unsplash.com/photo-1527224538127-2104bb71c51b?w=400&q=80',
-      venue: 'National Theatre',
-      location: 'Accra, Ghana',
-      date: '2025-01-20T19:00:00',
-      time: '7:00 PM',
-    },
-    tier: 'Regular',
-    quantity: 4,
-    totalAmount: 42000,
-    paymentStatus: 'completed',
-    createdAt: '2024-12-04T15:45:00',
-  },
-];
+import { useAuth } from '@/hooks/useAuth';
+import { useUserOrders } from '@/hooks/useOrders';
 
 const Dashboard = () => {
-  const upcomingOrders = mockOrders.filter(
-    (order) => new Date(order.show.date) > new Date()
+  const { user } = useAuth();
+  const { data: orders = [], isLoading } = useUserOrders(user?.id);
+
+  const upcomingOrders = orders.filter(
+    (order) => order.show && new Date(order.show.date) > new Date() && order.payment_status === 'completed'
   );
-  const pastOrders = mockOrders.filter(
-    (order) => new Date(order.show.date) <= new Date()
+  const pastOrders = orders.filter(
+    (order) => order.show && new Date(order.show.date) <= new Date() && order.payment_status === 'completed'
   );
+  const completedOrders = orders.filter((order) => order.payment_status === 'completed');
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 md:pt-28 pb-16 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,9 +59,9 @@ const Dashboard = () => {
           >
             {[
               { label: 'Upcoming Events', value: upcomingOrders.length, icon: Calendar },
-              { label: 'Total Tickets', value: mockOrders.reduce((sum, o) => sum + o.quantity, 0), icon: Ticket },
-              { label: 'Total Spent', value: `₦${mockOrders.reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString()}`, icon: QrCode },
-            ].map((stat, index) => (
+              { label: 'Total Tickets', value: completedOrders.reduce((sum, o) => sum + o.quantity, 0), icon: Ticket },
+              { label: 'Total Spent', value: `₦${completedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0).toLocaleString()}`, icon: QrCode },
+            ].map((stat) => (
               <div
                 key={stat.label}
                 className="glass-card p-6 rounded-2xl flex items-center gap-4"
@@ -115,8 +95,8 @@ const Dashboard = () => {
                     <div className="flex flex-col md:flex-row">
                       <div className="md:w-48 h-32 md:h-auto">
                         <img
-                          src={order.show.image}
-                          alt={order.show.title}
+                          src={order.show?.image || '/placeholder.svg'}
+                          alt={order.show?.title}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -130,29 +110,29 @@ const Dashboard = () => {
                               </span>
                             </div>
                             <h3 className="font-display text-xl font-bold text-foreground mb-2">
-                              {order.show.title}
+                              {order.show?.title}
                             </h3>
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <MapPin className="w-4 h-4" />
-                                {order.show.venue}
+                                {order.show?.venue}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
-                                {new Date(order.show.date).toLocaleDateString()}
+                                {order.show?.date && new Date(order.show.date).toLocaleDateString()}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-4 h-4" />
-                                {order.show.time}
+                                {order.show?.time}
                               </span>
                             </div>
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-muted-foreground">
-                              {order.tier} × {order.quantity}
+                              {order.ticket_tier?.name} × {order.quantity}
                             </p>
                             <p className="text-lg font-bold text-foreground">
-                              ₦{order.totalAmount.toLocaleString()}
+                              ₦{Number(order.total_amount).toLocaleString()}
                             </p>
                             <Button variant="outline" size="sm" className="mt-2">
                               <Download className="w-4 h-4 mr-2" />
@@ -185,9 +165,9 @@ const Dashboard = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-bold text-foreground">{order.show.title}</h3>
+                        <h3 className="font-bold text-foreground">{order.show?.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(order.show.date).toLocaleDateString()} • {order.tier} × {order.quantity}
+                          {order.show?.date && new Date(order.show.date).toLocaleDateString()} • {order.ticket_tier?.name} × {order.quantity}
                         </p>
                       </div>
                       <span className="status-badge status-passed">Completed</span>
@@ -199,7 +179,7 @@ const Dashboard = () => {
           )}
 
           {/* Empty State */}
-          {mockOrders.length === 0 && (
+          {orders.length === 0 && (
             <div className="text-center py-20">
               <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-display text-2xl font-bold text-foreground mb-2">
