@@ -1,21 +1,22 @@
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { ShowCard } from '@/components/ShowCard';
-import { mockShows } from '@/data/mockShows';
+import { useShows } from '@/hooks/useShows';
 import { motion } from 'framer-motion';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { getShowStatus } from '@/types/show';
 
 const Shows = () => {
+  const { data: shows = [], isLoading } = useShows();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const categories = [...new Set(mockShows.map((show) => show.category))];
+  const categories = [...new Set(shows.map((show) => show.category))];
 
-  const filteredShows = mockShows.filter((show) => {
+  const filteredShows = shows.filter((show) => {
     const matchesSearch = show.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       show.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !selectedCategory || show.category === selectedCategory;
@@ -81,45 +82,55 @@ const Shows = () => {
             </div>
           </motion.div>
 
-          {/* Available Shows */}
-          {availableShows.length > 0 && (
-            <section className="mb-16">
-              <h2 className="font-display text-2xl font-bold text-foreground mb-6">
-                Upcoming Events ({availableShows.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {availableShows.map((show, index) => (
-                  <ShowCard key={show.id} show={show} index={index} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Past Shows */}
-          {passedShows.length > 0 && (
-            <section>
-              <h2 className="font-display text-2xl font-bold text-muted-foreground mb-6">
-                Past Events ({passedShows.length})
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
-                {passedShows.map((show, index) => (
-                  <ShowCard key={show.id} show={show} index={index} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* No Results */}
-          {filteredShows.length === 0 && (
-            <div className="text-center py-20">
-              <Filter className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-display text-xl font-bold text-foreground mb-2">
-                No shows found
-              </h3>
-              <p className="text-muted-foreground">
-                Try adjusting your search or filter criteria.
-              </p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
+          ) : (
+            <>
+              {/* Available Shows */}
+              {availableShows.length > 0 && (
+                <section className="mb-16">
+                  <h2 className="font-display text-2xl font-bold text-foreground mb-6">
+                    Upcoming Events ({availableShows.length})
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {availableShows.map((show, index) => (
+                      <ShowCard key={show.id} show={show} index={index} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Past Shows */}
+              {passedShows.length > 0 && (
+                <section>
+                  <h2 className="font-display text-2xl font-bold text-muted-foreground mb-6">
+                    Past Events ({passedShows.length})
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
+                    {passedShows.map((show, index) => (
+                      <ShowCard key={show.id} show={show} index={index} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* No Results */}
+              {filteredShows.length === 0 && (
+                <div className="text-center py-20">
+                  <Filter className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-display text-xl font-bold text-foreground mb-2">
+                    No shows found
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {shows.length === 0 
+                      ? 'No shows have been created yet. Check back soon!' 
+                      : 'Try adjusting your search or filter criteria.'}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
