@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      orders: {
+        Row: {
+          created_at: string
+          id: string
+          payment_status: string
+          quantity: number
+          reference: string
+          show_id: string
+          ticket_tier_id: string
+          total_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_status?: string
+          quantity: number
+          reference: string
+          show_id: string
+          ticket_tier_id: string
+          total_amount: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_status?: string
+          quantity?: number
+          reference?: string
+          show_id?: string
+          ticket_tier_id?: string
+          total_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_ticket_tier_id_fkey"
+            columns: ["ticket_tier_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -40,6 +91,95 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      shows: {
+        Row: {
+          category: string
+          created_at: string
+          date: string
+          description: string | null
+          featured: boolean | null
+          id: string
+          image: string | null
+          location: string
+          time: string
+          title: string
+          updated_at: string
+          venue: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          date: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          image?: string | null
+          location: string
+          time: string
+          title: string
+          updated_at?: string
+          venue: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          image?: string | null
+          location?: string
+          time?: string
+          title?: string
+          updated_at?: string
+          venue?: string
+        }
+        Relationships: []
+      }
+      ticket_tiers: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          quantity: number
+          show_id: string
+          sold: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price: number
+          quantity: number
+          show_id: string
+          sold?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          quantity?: number
+          show_id?: string
+          sold?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_tiers_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
