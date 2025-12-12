@@ -59,10 +59,14 @@ serve(async (req: Request) => {
       );
     }
 
-    // Get the order
+    // Get the order with show and ticket tier details
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("*")
+      .select(`
+        *,
+        shows:show_id (title, date, time, venue),
+        ticket_tiers:ticket_tier_id (name)
+      `)
       .eq("reference", reference)
       .single();
 
@@ -108,6 +112,48 @@ serve(async (req: Request) => {
         .from("ticket_tiers")
         .update({ sold: tier.sold + order.quantity })
         .eq("id", order.ticket_tier_id);
+    }
+
+    // Get user profile for email
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, full_name")
+      .eq("user_id", order.user_id)
+      .single();
+
+    // Send confirmation email
+    if (profile?.email && order.shows && order.ticket_tiers) {
+      try {
+        const emailPayload = {
+          email: profile.email,
+          customerName: profile.full_name || "Valued Customer",
+          showTitle: order.shows.title,
+          showDate: order.shows.date,
+          showTime: order.shows.time,
+          venue: order.shows.venue,
+          ticketTier: order.ticket_tiers.name,
+          quantity: order.quantity,
+          totalAmount: order.total_amount,
+          reference: order.reference,
+        };
+
+        console.log("Sending confirmation email with payload:", emailPayload);
+
+        const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-ticket-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify(emailPayload),
+        });
+
+        const emailResult = await emailResponse.json();
+        console.log("Email send result:", emailResult);
+      } catch (emailError) {
+        console.error("Error sending confirmation email:", emailError);
+        // Don't fail the payment verification if email fails
+      }
     }
 
     console.log("Payment verified successfully for reference:", reference);
