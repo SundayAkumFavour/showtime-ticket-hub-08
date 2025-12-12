@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import PaymentVerify from "./pages/PaymentVerify";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/shows" element={<Shows />} />
             <Route path="/show/:id" element={<ShowDetail />} />
+            <Route path="/payment/verify" element={<PaymentVerify />} />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/dashboard"
