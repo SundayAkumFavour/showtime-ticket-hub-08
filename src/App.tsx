@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Shows from "./pages/Shows";
 import ShowDetail from "./pages/ShowDetail";
 import Dashboard from "./pages/Dashboard";
+import OrderHistory from "./pages/OrderHistory";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -34,6 +35,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <OrderHistory />
                 </ProtectedRoute>
               }
             />
