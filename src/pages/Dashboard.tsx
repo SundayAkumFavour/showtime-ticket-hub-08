@@ -1,15 +1,44 @@
+import { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
+import { TicketDownloadModal } from '@/components/TicketDownloadModal';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, Clock, MapPin, Download, QrCode, Loader2 } from 'lucide-react';
+import { Ticket, Calendar, Clock, MapPin, Download, QrCode, Loader2, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserOrders } from '@/hooks/useOrders';
 
+interface OrderWithDetails {
+  id: string;
+  reference: string;
+  quantity: number;
+  total_amount: number;
+  payment_status: string;
+  created_at: string;
+  checked_in?: boolean;
+  seat_ids?: string[];
+  show?: {
+    id: string;
+    title: string;
+    image: string | null;
+    venue: string;
+    location: string;
+    date: string;
+    time: string;
+  };
+  ticket_tier?: {
+    id: string;
+    name: string;
+    price: number;
+  };
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const { data: orders = [], isLoading } = useUserOrders(user?.id);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const upcomingOrders = orders.filter(
     (order) => order.show && new Date(order.show.date) > new Date() && order.payment_status === 'completed'
@@ -18,6 +47,11 @@ const Dashboard = () => {
     (order) => order.show && new Date(order.show.date) <= new Date() && order.payment_status === 'completed'
   );
   const completedOrders = orders.filter((order) => order.payment_status === 'completed');
+
+  const handleViewTicket = (order: OrderWithDetails) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -40,14 +74,22 @@ const Dashboard = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-10"
+            className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
           >
-            <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
-              My Tickets
-            </h1>
-            <p className="text-muted-foreground max-w-2xl">
-              View and manage all your purchased tickets. Don't forget to download your tickets before the show!
-            </p>
+            <div>
+              <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
+                My Tickets
+              </h1>
+              <p className="text-muted-foreground max-w-2xl">
+                View and manage all your purchased tickets. Download your tickets with QR codes before the show!
+              </p>
+            </div>
+            <Link to="/orders">
+              <Button variant="outline" className="shrink-0">
+                <History className="w-4 h-4 mr-2" />
+                Order History
+              </Button>
+            </Link>
           </motion.div>
 
           {/* Stats */}
@@ -134,9 +176,14 @@ const Dashboard = () => {
                             <p className="text-lg font-bold text-foreground">
                               ₦{Number(order.total_amount).toLocaleString()}
                             </p>
-                            <Button variant="outline" size="sm" className="mt-2">
-                              <Download className="w-4 h-4 mr-2" />
-                              Download Ticket
+                            <Button 
+                              variant="gradient" 
+                              size="sm" 
+                              className="mt-2"
+                              onClick={() => handleViewTicket(order as OrderWithDetails)}
+                            >
+                              <QrCode className="w-4 h-4 mr-2" />
+                              View Ticket
                             </Button>
                           </div>
                         </div>
@@ -198,6 +245,18 @@ const Dashboard = () => {
         </div>
       </main>
       <Footer />
+
+      {/* Ticket Modal */}
+      {selectedOrder && (
+        <TicketDownloadModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          order={selectedOrder}
+        />
+      )}
     </div>
   );
 };

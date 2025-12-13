@@ -3,13 +3,16 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { TicketTierCard } from '@/components/TicketTierCard';
+import { SeatSelector } from '@/components/SeatSelector';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useShow } from '@/hooks/useShows';
+import { useSeatsForShow, Seat } from '@/hooks/useSeats';
 import { useAuth } from '@/hooks/useAuth';
 import { usePaystack } from '@/hooks/usePaystack';
 import { getShowStatus } from '@/types/show';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Clock, ArrowLeft, ShoppingCart, Ticket, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, Clock, ArrowLeft, ShoppingCart, Ticket, Loader2, Armchair } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 
@@ -17,32 +20,66 @@ const ShowDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: show, isLoading } = useShow(id || '');
+  const { data: seats = [] } = useSeatsForShow(id || '');
   const { user, session } = useAuth();
   const { initializePayment } = usePaystack();
   
   const [selectedTiers, setSelectedTiers] = useState<Record<string, number>>({});
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<'tier' | 'seat'>('tier');
+
+  const hasSeatingLayout = seats.length > 0;
 
   const status = show ? getShowStatus(show) : 'passed';
   const isAvailable = status === 'available';
 
-  const totalItems = useMemo(() => {
-    return Object.values(selectedTiers).reduce((sum, qty) => sum + qty, 0);
-  }, [selectedTiers]);
+  // Calculate totals based on selection mode
+  const { totalItems, totalAmount, selectedSeatDetails } = useMemo(() => {
+    if (selectionMode === 'seat' && hasSeatingLayout) {
+      const seatDetails = selectedSeats
+        .map((seatId) => seats.find((s) => s.id === seatId))
+        .filter(Boolean) as Seat[];
+      
+      const amount = seatDetails.reduce((sum, seat) => {
+        const tier = show?.ticketTiers.find((t) => t.id === seat.tier_id);
+        return sum + (tier?.price || 0);
+      }, 0);
 
-  const totalAmount = useMemo(() => {
-    if (!show) return 0;
-    return show.ticketTiers.reduce((sum, tier) => {
-      const qty = selectedTiers[tier.id] || 0;
-      return sum + tier.price * qty;
-    }, 0);
-  }, [selectedTiers, show]);
+      return {
+        totalItems: selectedSeats.length,
+        totalAmount: amount,
+        selectedSeatDetails: seatDetails,
+      };
+    } else {
+      const items = Object.values(selectedTiers).reduce((sum, qty) => sum + qty, 0);
+      const amount = show?.ticketTiers.reduce((sum, tier) => {
+        const qty = selectedTiers[tier.id] || 0;
+        return sum + tier.price * qty;
+      }, 0) || 0;
+
+      return {
+        totalItems: items,
+        totalAmount: amount,
+        selectedSeatDetails: [],
+      };
+    }
+  }, [selectedTiers, selectedSeats, selectionMode, hasSeatingLayout, seats, show]);
 
   const handleQuantityChange = (tierId: string, quantity: number) => {
     setSelectedTiers((prev) => ({
       ...prev,
       [tierId]: quantity,
     }));
+  };
+
+  const handleSeatSelect = (seatId: string, seat: Seat) => {
+    setSelectedSeats((prev) => {
+      if (prev.includes(seatId)) {
+        return prev.filter((id) => id !== seatId);
+      }
+      return [...prev, seatId];
+    });
   };
 
   const handleCheckout = async () => {
@@ -60,28 +97,52 @@ const ShowDetail = () => {
     setIsProcessing(true);
 
     try {
-      // Get the first selected tier (for now, one tier at a time)
-      const selectedTierId = Object.keys(selectedTiers).find((id) => selectedTiers[id] > 0);
-      if (!selectedTierId || !show) {
-        toast.error('Please select a ticket tier');
+      if (!show) {
+        toast.error('Show not found');
         return;
       }
 
-      const quantity = selectedTiers[selectedTierId];
-      const tier = show.ticketTiers.find((t) => t.id === selectedTierId);
-      if (!tier) {
-        toast.error('Invalid ticket tier');
-        return;
+      let ticketTierId: string;
+      let quantity: number;
+      let tierPrice: number;
+      let seatIds: string[] = [];
+
+      if (selectionMode === 'seat' && hasSeatingLayout && selectedSeatDetails.length > 0) {
+        // For seat selection, use the tier of the first seat (or group by tier in future)
+        const firstSeat = selectedSeatDetails[0];
+        ticketTierId = firstSeat.tier_id || show.ticketTiers[0].id;
+        quantity = selectedSeats.length;
+        seatIds = selectedSeats;
+        
+        const tier = show.ticketTiers.find((t) => t.id === ticketTierId);
+        tierPrice = tier?.price || 0;
+      } else {
+        // For tier-based selection
+        const selectedTierId = Object.keys(selectedTiers).find((id) => selectedTiers[id] > 0);
+        if (!selectedTierId) {
+          toast.error('Please select a ticket tier');
+          return;
+        }
+
+        ticketTierId = selectedTierId;
+        quantity = selectedTiers[selectedTierId];
+        const tier = show.ticketTiers.find((t) => t.id === selectedTierId);
+        if (!tier) {
+          toast.error('Invalid ticket tier');
+          return;
+        }
+        tierPrice = tier.price;
       }
 
-      const amount = tier.price * quantity * 1.05; // Including 5% service fee
+      const amount = totalAmount * 1.05; // Including 5% service fee
 
       const result = await initializePayment({
         email: user.email || '',
         amount,
         showId: show.id,
-        ticketTierId: selectedTierId,
+        ticketTierId,
         quantity,
+        seatIds,
       });
 
       if (result?.authorization_url) {
@@ -219,28 +280,78 @@ const ShowDetail = () => {
                 </p>
               </div>
 
-              {/* Ticket Tiers */}
+              {/* Ticket Selection */}
               <div>
                 <h2 className="font-display text-2xl font-bold text-foreground mb-6">
                   Select Tickets
                 </h2>
-                <div className="space-y-4">
-                  {show.ticketTiers.map((tier, index) => (
-                    <motion.div
-                      key={tier.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <TicketTierCard
-                        tier={tier}
-                        quantity={selectedTiers[tier.id] || 0}
-                        onQuantityChange={(qty) => handleQuantityChange(tier.id, qty)}
-                        disabled={!isAvailable}
-                      />
-                    </motion.div>
-                  ))}
-                </div>
+
+                {hasSeatingLayout ? (
+                  <Tabs value={selectionMode} onValueChange={(v) => {
+                    setSelectionMode(v as 'tier' | 'seat');
+                    setSelectedSeats([]);
+                    setSelectedTiers({});
+                  }}>
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger value="tier" className="flex items-center gap-2">
+                        <Ticket className="w-4 h-4" />
+                        By Tier
+                      </TabsTrigger>
+                      <TabsTrigger value="seat" className="flex items-center gap-2">
+                        <Armchair className="w-4 h-4" />
+                        Choose Seat
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="tier" className="space-y-4">
+                      {show.ticketTiers.map((tier, index) => (
+                        <motion.div
+                          key={tier.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <TicketTierCard
+                            tier={tier}
+                            quantity={selectedTiers[tier.id] || 0}
+                            onQuantityChange={(qty) => handleQuantityChange(tier.id, qty)}
+                            disabled={!isAvailable}
+                          />
+                        </motion.div>
+                      ))}
+                    </TabsContent>
+
+                    <TabsContent value="seat">
+                      <div className="glass-card p-6 rounded-2xl">
+                        <SeatSelector
+                          showId={show.id}
+                          ticketTiers={show.ticketTiers}
+                          selectedSeats={selectedSeats}
+                          onSeatSelect={handleSeatSelect}
+                          disabled={!isAvailable}
+                        />
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <div className="space-y-4">
+                    {show.ticketTiers.map((tier, index) => (
+                      <motion.div
+                        key={tier.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <TicketTierCard
+                          tier={tier}
+                          quantity={selectedTiers[tier.id] || 0}
+                          onQuantityChange={(qty) => handleQuantityChange(tier.id, qty)}
+                          disabled={!isAvailable}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -263,20 +374,40 @@ const ShowDetail = () => {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {show.ticketTiers.map((tier) => {
-                      const qty = selectedTiers[tier.id] || 0;
-                      if (qty === 0) return null;
-                      return (
-                        <div key={tier.id} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {tier.name} × {qty}
-                          </span>
-                          <span className="text-foreground font-medium">
-                            ₦{(tier.price * qty).toLocaleString()}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {selectionMode === 'seat' && hasSeatingLayout ? (
+                      // Seat selection summary
+                      <div className="space-y-2">
+                        {selectedSeatDetails.map((seat) => {
+                          const tier = show.ticketTiers.find((t) => t.id === seat.tier_id);
+                          return (
+                            <div key={seat.id} className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Seat {seat.row_label}{seat.seat_number} ({tier?.name || 'Regular'})
+                              </span>
+                              <span className="text-foreground font-medium">
+                                ₦{(tier?.price || 0).toLocaleString()}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      // Tier selection summary
+                      show.ticketTiers.map((tier) => {
+                        const qty = selectedTiers[tier.id] || 0;
+                        if (qty === 0) return null;
+                        return (
+                          <div key={tier.id} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {tier.name} × {qty}
+                            </span>
+                            <span className="text-foreground font-medium">
+                              ₦{(tier.price * qty).toLocaleString()}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
 
                     <div className="border-t border-border pt-4">
                       <div className="flex justify-between">

@@ -16,33 +16,45 @@ export type Database = {
     Tables: {
       orders: {
         Row: {
+          checked_in: boolean
+          checked_in_at: string | null
           created_at: string
           id: string
           payment_status: string
+          qr_code: string | null
           quantity: number
           reference: string
+          seat_ids: string[] | null
           show_id: string
           ticket_tier_id: string
           total_amount: number
           user_id: string
         }
         Insert: {
+          checked_in?: boolean
+          checked_in_at?: string | null
           created_at?: string
           id?: string
           payment_status?: string
+          qr_code?: string | null
           quantity: number
           reference: string
+          seat_ids?: string[] | null
           show_id: string
           ticket_tier_id: string
           total_amount: number
           user_id: string
         }
         Update: {
+          checked_in?: boolean
+          checked_in_at?: string | null
           created_at?: string
           id?: string
           payment_status?: string
+          qr_code?: string | null
           quantity?: number
           reference?: string
+          seat_ids?: string[] | null
           show_id?: string
           ticket_tier_id?: string
           total_amount?: number
@@ -91,6 +103,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      seats: {
+        Row: {
+          created_at: string
+          id: string
+          layout_id: string | null
+          order_id: string | null
+          row_label: string
+          seat_number: number
+          show_id: string
+          status: string
+          tier_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          layout_id?: string | null
+          order_id?: string | null
+          row_label: string
+          seat_number: number
+          show_id: string
+          status?: string
+          tier_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layout_id?: string | null
+          order_id?: string | null
+          row_label?: string
+          seat_number?: number
+          show_id?: string
+          status?: string
+          tier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seats_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "venue_layouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seats_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seats_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seats_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shows: {
         Row: {
@@ -199,6 +276,33 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      venue_layouts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          rows_config: Json
+          updated_at: string
+          venue_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          rows_config?: Json
+          updated_at?: string
+          venue_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          rows_config?: Json
+          updated_at?: string
+          venue_name?: string
         }
         Relationships: []
       }
