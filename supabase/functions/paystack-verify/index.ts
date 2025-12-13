@@ -42,10 +42,24 @@ serve(async (req: Request) => {
 
     if (!paystackData.status || paystackData.data.status !== "success") {
       // Update order to failed
+      const { data: failedOrder } = await supabase
+        .from("orders")
+        .select("seat_ids")
+        .eq("reference", reference)
+        .single();
+
       await supabase
         .from("orders")
         .update({ payment_status: "failed" })
         .eq("reference", reference);
+
+      // Release reserved seats
+      if (failedOrder?.seat_ids && failedOrder.seat_ids.length > 0) {
+        await supabase
+          .from("seats")
+          .update({ status: "available", order_id: null })
+          .in("id", failedOrder.seat_ids);
+      }
 
       return new Response(
         JSON.stringify({
@@ -89,10 +103,19 @@ serve(async (req: Request) => {
       );
     }
 
-    // Update order status
+    // Generate QR code data string
+    const qrCode = JSON.stringify({
+      orderId: order.id,
+      reference: order.reference,
+    });
+
+    // Update order status with QR code
     const { error: updateOrderError } = await supabase
       .from("orders")
-      .update({ payment_status: "completed" })
+      .update({ 
+        payment_status: "completed",
+        qr_code: qrCode,
+      })
       .eq("reference", reference);
 
     if (updateOrderError) {
@@ -100,18 +123,32 @@ serve(async (req: Request) => {
       throw new Error("Failed to update order");
     }
 
-    // Update ticket tier sold count
-    const { data: tier, error: tierError } = await supabase
-      .from("ticket_tiers")
-      .select("sold")
-      .eq("id", order.ticket_tier_id)
-      .single();
+    // Mark seats as sold and link to order
+    if (order.seat_ids && order.seat_ids.length > 0) {
+      const { error: seatUpdateError } = await supabase
+        .from("seats")
+        .update({ status: "sold", order_id: order.id })
+        .in("id", order.seat_ids);
 
-    if (!tierError && tier) {
-      await supabase
+      if (seatUpdateError) {
+        console.error("Error updating seats:", seatUpdateError);
+      }
+    }
+
+    // Update ticket tier sold count (only for non-seat purchases)
+    if (!order.seat_ids || order.seat_ids.length === 0) {
+      const { data: tier, error: tierError } = await supabase
         .from("ticket_tiers")
-        .update({ sold: tier.sold + order.quantity })
-        .eq("id", order.ticket_tier_id);
+        .select("sold")
+        .eq("id", order.ticket_tier_id)
+        .single();
+
+      if (!tierError && tier) {
+        await supabase
+          .from("ticket_tiers")
+          .update({ sold: tier.sold + order.quantity })
+          .eq("id", order.ticket_tier_id);
+      }
     }
 
     // Get user profile for email
@@ -120,6 +157,23 @@ serve(async (req: Request) => {
       .select("email, full_name")
       .eq("user_id", order.user_id)
       .single();
+
+    // Get seat info for email
+    let seatInfo = "";
+    if (order.seat_ids && order.seat_ids.length > 0) {
+      const { data: seats } = await supabase
+        .from("seats")
+        .select("row_label, seat_number")
+        .in("id", order.seat_ids)
+        .order("row_label")
+        .order("seat_number");
+
+      if (seats && seats.length > 0) {
+        seatInfo = seats.map((s: { row_label: string; seat_number: number }) => 
+          `${s.row_label}${s.seat_number}`
+        ).join(", ");
+      }
+    }
 
     // Send confirmation email
     if (profile?.email && order.shows && order.ticket_tiers) {
@@ -135,6 +189,7 @@ serve(async (req: Request) => {
           quantity: order.quantity,
           totalAmount: order.total_amount,
           reference: order.reference,
+          seatInfo: seatInfo || undefined,
         };
 
         console.log("Sending confirmation email with payload:", emailPayload);

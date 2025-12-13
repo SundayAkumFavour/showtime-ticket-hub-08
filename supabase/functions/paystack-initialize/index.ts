@@ -13,6 +13,7 @@ interface PaystackInitRequest {
   ticketTierId: string;
   quantity: number;
   callback_url: string;
+  seatIds?: string[];
 }
 
 serve(async (req: Request) => {
@@ -44,7 +45,7 @@ serve(async (req: Request) => {
     }
 
     const body: PaystackInitRequest = await req.json();
-    const { email, amount, showId, ticketTierId, quantity, callback_url } = body;
+    const { email, amount, showId, ticketTierId, quantity, callback_url, seatIds } = body;
 
     // Validate the ticket tier exists and has enough quantity
     const { data: tier, error: tierError } = await supabase
@@ -57,15 +58,44 @@ serve(async (req: Request) => {
       throw new Error("Ticket tier not found");
     }
 
-    const availableQuantity = tier.quantity - tier.sold;
-    if (quantity > availableQuantity) {
-      throw new Error(`Only ${availableQuantity} tickets available`);
+    // If seatIds provided, validate seats are available
+    if (seatIds && seatIds.length > 0) {
+      const { data: seats, error: seatsError } = await supabase
+        .from("seats")
+        .select("id, status")
+        .in("id", seatIds);
+
+      if (seatsError) {
+        throw new Error("Failed to validate seats");
+      }
+
+      const unavailableSeats = seats?.filter(s => s.status !== "available") || [];
+      if (unavailableSeats.length > 0) {
+        throw new Error("Some selected seats are no longer available");
+      }
+
+      // Reserve the seats temporarily
+      const { error: reserveError } = await supabase
+        .from("seats")
+        .update({ status: "reserved" })
+        .in("id", seatIds);
+
+      if (reserveError) {
+        console.error("Error reserving seats:", reserveError);
+        throw new Error("Failed to reserve seats");
+      }
+    } else {
+      // Non-seat based purchase - check tier availability
+      const availableQuantity = tier.quantity - tier.sold;
+      if (quantity > availableQuantity) {
+        throw new Error(`Only ${availableQuantity} tickets available`);
+      }
     }
 
     // Generate unique reference
     const reference = `SH-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // Create pending order
+    // Create pending order with seat_ids
     const { error: orderError } = await supabase.from("orders").insert({
       user_id: user.id,
       show_id: showId,
@@ -74,10 +104,18 @@ serve(async (req: Request) => {
       total_amount: amount / 100, // Convert from kobo to naira
       payment_status: "pending",
       reference,
+      seat_ids: seatIds || [],
     });
 
     if (orderError) {
       console.error("Order creation error:", orderError);
+      // Unreserve seats if order creation fails
+      if (seatIds && seatIds.length > 0) {
+        await supabase
+          .from("seats")
+          .update({ status: "available" })
+          .in("id", seatIds);
+      }
       throw new Error("Failed to create order");
     }
 
@@ -99,6 +137,7 @@ serve(async (req: Request) => {
           ticket_tier_id: ticketTierId,
           quantity,
           user_id: user.id,
+          seat_ids: seatIds || [],
         },
       }),
     });
@@ -109,6 +148,13 @@ serve(async (req: Request) => {
     if (!paystackData.status) {
       // Delete the pending order if Paystack fails
       await supabase.from("orders").delete().eq("reference", reference);
+      // Unreserve seats
+      if (seatIds && seatIds.length > 0) {
+        await supabase
+          .from("seats")
+          .update({ status: "available" })
+          .in("id", seatIds);
+      }
       throw new Error(paystackData.message || "Failed to initialize payment");
     }
 
