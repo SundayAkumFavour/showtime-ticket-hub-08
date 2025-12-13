@@ -30,6 +30,7 @@ export const usePaystack = () => {
         ticketTierId,
         quantity,
         callback_url,
+        seatIds,
       },
     });
 

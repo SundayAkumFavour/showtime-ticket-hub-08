@@ -15,8 +15,11 @@ import {
   Users,
   Search,
   Loader2,
+  LayoutGrid,
+  Scan,
 } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserManagement } from '@/components/admin/UserManagement';
+import { VenueLayoutManager } from '@/components/admin/VenueLayoutManager';
 import { ShowForm, ShowFormData } from '@/components/admin/ShowForm';
 
 const Admin = () => {
@@ -95,11 +99,21 @@ const Admin = () => {
             </p>
           </motion.div>
 
-          <Tabs defaultValue="shows" className="space-y-8">
-            <TabsList className="bg-muted/50">
-              <TabsTrigger value="shows">Shows</TabsTrigger>
-              <TabsTrigger value="users">Users</TabsTrigger>
-            </TabsList>
+          <div className="flex items-center gap-4 mb-6">
+            <Tabs defaultValue="shows" className="flex-1">
+              <div className="flex items-center justify-between mb-6">
+                <TabsList className="bg-muted/50">
+                  <TabsTrigger value="shows">Shows</TabsTrigger>
+                  <TabsTrigger value="venues">Venue Layouts</TabsTrigger>
+                  <TabsTrigger value="users">Users</TabsTrigger>
+                </TabsList>
+                <Link to="/scanner">
+                  <Button variant="outline">
+                    <Scan className="w-4 h-4 mr-2" />
+                    Ticket Scanner
+                  </Button>
+                </Link>
+              </div>
 
             <TabsContent value="shows" className="space-y-8">
               {/* Stats Grid */}
@@ -294,10 +308,15 @@ const Admin = () => {
               </motion.div>
             </TabsContent>
 
+            <TabsContent value="venues">
+              <VenueLayoutManager />
+            </TabsContent>
+
             <TabsContent value="users">
               <UserManagement />
             </TabsContent>
           </Tabs>
+          </div>
         </div>
       </main>
       <Footer />
