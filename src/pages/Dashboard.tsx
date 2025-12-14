@@ -3,8 +3,9 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { TicketDownloadModal } from '@/components/TicketDownloadModal';
+import { TicketTransferModal } from '@/components/TicketTransferModal';
 import { motion } from 'framer-motion';
-import { Ticket, Calendar, Clock, MapPin, Download, QrCode, Loader2, History } from 'lucide-react';
+import { Ticket, Calendar, Clock, MapPin, Download, QrCode, Loader2, History, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserOrders } from '@/hooks/useOrders';
@@ -39,6 +40,7 @@ const Dashboard = () => {
   const { data: orders = [], isLoading } = useUserOrders(user?.id);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [transferOrder, setTransferOrder] = useState<OrderWithDetails | null>(null);
 
   const upcomingOrders = orders.filter(
     (order) => order.show && new Date(order.show.date) > new Date() && order.payment_status === 'completed'
@@ -169,23 +171,32 @@ const Dashboard = () => {
                               </span>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">
-                              {order.ticket_tier?.name} × {order.quantity}
-                            </p>
-                            <p className="text-lg font-bold text-foreground">
-                              ₦{Number(order.total_amount).toLocaleString()}
-                            </p>
-                            <Button 
-                              variant="gradient" 
-                              size="sm" 
-                              className="mt-2"
-                              onClick={() => handleViewTicket(order as OrderWithDetails)}
-                            >
-                              <QrCode className="w-4 h-4 mr-2" />
-                              View Ticket
-                            </Button>
-                          </div>
+                            <div className="flex flex-col gap-2">
+                              <p className="text-sm text-muted-foreground">
+                                {order.ticket_tier?.name} × {order.quantity}
+                              </p>
+                              <p className="text-lg font-bold text-foreground">
+                                ₦{Number(order.total_amount).toLocaleString()}
+                              </p>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="gradient" 
+                                  size="sm"
+                                  onClick={() => handleViewTicket(order as OrderWithDetails)}
+                                >
+                                  <QrCode className="w-4 h-4 mr-2" />
+                                  View
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setTransferOrder(order as OrderWithDetails)}
+                                >
+                                  <Send className="w-4 h-4 mr-2" />
+                                  Transfer
+                                </Button>
+                              </div>
+                            </div>
                         </div>
                       </div>
                     </div>
@@ -255,6 +266,17 @@ const Dashboard = () => {
             setSelectedOrder(null);
           }}
           order={selectedOrder}
+        />
+      )}
+
+      {/* Transfer Modal */}
+      {transferOrder && (
+        <TicketTransferModal
+          isOpen={!!transferOrder}
+          onClose={() => setTransferOrder(null)}
+          orderId={transferOrder.id}
+          showTitle={transferOrder.show?.title || 'Unknown Show'}
+          ticketCount={transferOrder.quantity}
         />
       )}
     </div>

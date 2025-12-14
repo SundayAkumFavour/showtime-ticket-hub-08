@@ -11,6 +11,7 @@ import ShowDetail from "./pages/ShowDetail";
 import Dashboard from "./pages/Dashboard";
 import OrderHistory from "./pages/OrderHistory";
 import TicketScanner from "./pages/TicketScanner";
+import Analytics from "./pages/Analytics";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -60,6 +61,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <TicketScanner />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Analytics />
                 </ProtectedRoute>
               }
             />

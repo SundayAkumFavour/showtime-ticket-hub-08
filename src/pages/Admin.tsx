@@ -17,6 +17,7 @@ import {
   Loader2,
   LayoutGrid,
   Scan,
+  BarChart3,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -100,19 +101,27 @@ const Admin = () => {
           </motion.div>
 
           <div className="flex items-center gap-4 mb-6">
-            <Tabs defaultValue="shows" className="flex-1">
+          <Tabs defaultValue="shows" className="flex-1">
               <div className="flex items-center justify-between mb-6">
                 <TabsList className="bg-muted/50">
                   <TabsTrigger value="shows">Shows</TabsTrigger>
                   <TabsTrigger value="venues">Venue Layouts</TabsTrigger>
                   <TabsTrigger value="users">Users</TabsTrigger>
                 </TabsList>
-                <Link to="/scanner">
-                  <Button variant="outline">
-                    <Scan className="w-4 h-4 mr-2" />
-                    Ticket Scanner
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link to="/analytics">
+                    <Button variant="outline">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Analytics
+                    </Button>
+                  </Link>
+                  <Link to="/scanner">
+                    <Button variant="outline">
+                      <Scan className="w-4 h-4 mr-2" />
+                      Ticket Scanner
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
             <TabsContent value="shows" className="space-y-8">
