@@ -17,10 +17,13 @@ import {
   MapPin,
   Scan,
   AlertTriangle,
-  User
+  Camera,
+  CameraOff,
+  Keyboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface ScanResult {
   success: boolean;
@@ -55,12 +58,117 @@ const TicketScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [cameraMode, setCameraMode] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerContainerRef = useRef<string>('qr-reader');
+
+  // Initialize/cleanup camera scanner
+  useEffect(() => {
+    if (cameraMode) {
+      startCameraScanner();
+    } else {
+      stopCameraScanner();
+    }
+
+    return () => {
+      stopCameraScanner();
+    };
+  }, [cameraMode]);
 
   // Focus on input for barcode scanner support
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [scanResult]);
+    if (!cameraMode && !scanResult) {
+      inputRef.current?.focus();
+    }
+  }, [scanResult, cameraMode]);
+
+  const startCameraScanner = async () => {
+    try {
+      if (scannerRef.current) {
+        await stopCameraScanner();
+      }
+
+      const html5QrCode = new Html5Qrcode(scannerContainerRef.current);
+      scannerRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
+        },
+        async (decodedText) => {
+          // Pause scanning while processing
+          await html5QrCode.pause();
+          await handleQRCodeScanned(decodedText);
+          // Resume after processing
+          setTimeout(() => {
+            if (scannerRef.current?.getState() === 3) { // PAUSED state
+              html5QrCode.resume();
+            }
+          }, 2000);
+        },
+        () => {} // Ignore errors during scanning
+      );
+
+      setCameraReady(true);
+      toast.success('Camera ready - point at QR code');
+    } catch (error: any) {
+      console.error('Failed to start camera:', error);
+      toast.error('Failed to access camera. Check permissions.');
+      setCameraMode(false);
+      setCameraReady(false);
+    }
+  };
+
+  const stopCameraScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        const state = scannerRef.current.getState();
+        if (state === 2 || state === 3) { // SCANNING or PAUSED
+          await scannerRef.current.stop();
+        }
+        scannerRef.current.clear();
+      } catch (error) {
+        console.error('Error stopping scanner:', error);
+      }
+      scannerRef.current = null;
+    }
+    setCameraReady(false);
+  };
+
+  const handleQRCodeScanned = async (decodedText: string) => {
+    try {
+      const qrData = JSON.parse(decodedText);
+      if (qrData.orderId && qrData.reference) {
+        await verifyTicket(qrData.orderId, qrData.reference);
+        return;
+      }
+    } catch {
+      // Not JSON, try as plain reference
+    }
+
+    // Search by reference number
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('id, reference')
+      .eq('reference', decodedText.trim().toUpperCase())
+      .single();
+
+    if (error || !order) {
+      setScanResult({
+        success: false,
+        error: 'Ticket not found with this QR code',
+      });
+      toast.error('Ticket not found');
+      return;
+    }
+
+    await verifyTicket(order.id, order.reference);
+  };
 
   const verifyTicket = async (orderId: string, reference: string, markAsCheckedIn = false) => {
     setIsScanning(true);
@@ -147,7 +255,15 @@ const TicketScanner = () => {
   const resetScanner = () => {
     setScanResult(null);
     setManualReference('');
-    inputRef.current?.focus();
+    if (!cameraMode) {
+      inputRef.current?.focus();
+    }
+  };
+
+  const toggleCameraMode = () => {
+    setCameraMode(!cameraMode);
+    setScanResult(null);
+    setManualReference('');
   };
 
   return (
@@ -159,7 +275,7 @@ const TicketScanner = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-10"
+            className="text-center mb-6"
           >
             <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4">
               <Scan className="w-8 h-8 text-primary" />
@@ -168,47 +284,110 @@ const TicketScanner = () => {
               Ticket Scanner
             </h1>
             <p className="text-muted-foreground">
-              Scan QR codes or enter reference numbers to verify and check in attendees
+              Scan QR codes or enter reference numbers to check in attendees
             </p>
           </motion.div>
 
-          {/* Scanner Input */}
+          {/* Mode Toggle */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.05 }}
+            className="flex justify-center gap-2 mb-6"
           >
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <QrCode className="w-5 h-5 text-primary" />
-                  Scan or Enter Reference
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleManualSubmit} className="flex gap-3">
-                  <Input
-                    ref={inputRef}
-                    value={manualReference}
-                    onChange={(e) => setManualReference(e.target.value)}
-                    placeholder="Scan QR code or enter reference (e.g., SH-1234567890-ABC)"
-                    className="flex-1 font-mono"
-                    autoFocus
-                  />
-                  <Button type="submit" disabled={isScanning || !manualReference.trim()}>
-                    {isScanning ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      'Verify'
-                    )}
-                  </Button>
-                </form>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Connect a barcode/QR scanner to auto-fill this field
-                </p>
-              </CardContent>
-            </Card>
+            <Button
+              variant={cameraMode ? 'outline' : 'default'}
+              onClick={() => setCameraMode(false)}
+              className="flex-1 max-w-[160px]"
+            >
+              <Keyboard className="w-4 h-4 mr-2" />
+              Manual
+            </Button>
+            <Button
+              variant={cameraMode ? 'default' : 'outline'}
+              onClick={() => setCameraMode(true)}
+              className="flex-1 max-w-[160px]"
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              Camera
+            </Button>
           </motion.div>
+
+          {/* Camera Scanner */}
+          {cameraMode && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <Card className="mb-6 overflow-hidden">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    {cameraReady ? (
+                      <>
+                        <Camera className="w-5 h-5 text-green-500" />
+                        Camera Active
+                      </>
+                    ) : (
+                      <>
+                        <CameraOff className="w-5 h-5 text-muted-foreground" />
+                        Starting Camera...
+                      </>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div 
+                    id={scannerContainerRef.current}
+                    className="w-full aspect-square max-h-[400px] bg-muted"
+                  />
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    Point your camera at the QR code on the ticket
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Manual Input */}
+          {!cameraMode && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <QrCode className="w-5 h-5 text-primary" />
+                    Enter Reference
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleManualSubmit} className="flex gap-3">
+                    <Input
+                      ref={inputRef}
+                      value={manualReference}
+                      onChange={(e) => setManualReference(e.target.value)}
+                      placeholder="Scan QR or enter reference (e.g., SH-1234567890-ABC)"
+                      className="flex-1 font-mono"
+                      autoFocus
+                    />
+                    <Button type="submit" disabled={isScanning || !manualReference.trim()}>
+                      {isScanning ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Verify'
+                      )}
+                    </Button>
+                  </form>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Connect a barcode/QR scanner to auto-fill this field
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
           {/* Scan Result */}
           <AnimatePresence mode="wait">
@@ -339,7 +518,7 @@ const TicketScanner = () => {
           </AnimatePresence>
 
           {/* Instructions */}
-          {!scanResult && (
+          {!scanResult && !cameraMode && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -348,7 +527,7 @@ const TicketScanner = () => {
             >
               <p className="mb-2">How to use:</p>
               <ol className="list-decimal list-inside space-y-1 text-left max-w-sm mx-auto">
-                <li>Scan the QR code on the attendee's ticket</li>
+                <li>Use Camera mode for mobile QR scanning</li>
                 <li>Or manually enter the ticket reference number</li>
                 <li>Verify the ticket details</li>
                 <li>Click "Check In" to mark the attendee as checked in</li>
