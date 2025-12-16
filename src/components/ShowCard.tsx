@@ -1,5 +1,6 @@
 import { Show, getShowStatus } from '@/types/show';
 import { CountdownTimer } from './CountdownTimer';
+import { WaitlistButton } from './WaitlistButton';
 import { Button } from '@/components/ui/button';
 import { MapPin, Calendar, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -106,15 +107,23 @@ export const ShowCard = ({ show, index = 0 }: ShowCardProps) => {
               ₦{lowestPrice.toLocaleString()}
             </p>
           </div>
-          <Link to={`/show/${show.id}`}>
-            <Button 
-              variant={status === 'available' ? 'gradient' : 'outline'} 
+          {status === 'soldout' ? (
+            <WaitlistButton
+              showId={show.id}
+              showTitle={show.title}
               size="sm"
-              disabled={status !== 'available'}
-            >
-              {status === 'available' ? 'Buy Tickets' : status === 'soldout' ? 'Sold Out' : 'Unavailable'}
-            </Button>
-          </Link>
+            />
+          ) : (
+            <Link to={`/show/${show.id}`}>
+              <Button 
+                variant={status === 'available' ? 'gradient' : 'outline'} 
+                size="sm"
+                disabled={status !== 'available'}
+              >
+                {status === 'available' ? 'Buy Tickets' : 'Unavailable'}
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </motion.div>

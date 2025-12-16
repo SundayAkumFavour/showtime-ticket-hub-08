@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   Scan,
   BarChart3,
+  Tag,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -31,6 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { VenueLayoutManager } from '@/components/admin/VenueLayoutManager';
+import { PromoCodeManager } from '@/components/admin/PromoCodeManager';
 import { ShowForm, ShowFormData } from '@/components/admin/ShowForm';
 
 const Admin = () => {
@@ -106,6 +108,7 @@ const Admin = () => {
                 <TabsList className="bg-muted/50">
                   <TabsTrigger value="shows">Shows</TabsTrigger>
                   <TabsTrigger value="venues">Venue Layouts</TabsTrigger>
+                  <TabsTrigger value="promos">Promo Codes</TabsTrigger>
                   <TabsTrigger value="users">Users</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
@@ -319,6 +322,10 @@ const Admin = () => {
 
             <TabsContent value="venues">
               <VenueLayoutManager />
+            </TabsContent>
+
+            <TabsContent value="promos">
+              <PromoCodeManager />
             </TabsContent>
 
             <TabsContent value="users">

@@ -4,12 +4,15 @@ import { Footer } from '@/components/Footer';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { TicketTierCard } from '@/components/TicketTierCard';
 import { SeatSelector } from '@/components/SeatSelector';
+import { WaitlistButton } from '@/components/WaitlistButton';
+import { PromoCodeInput } from '@/components/PromoCodeInput';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useShow } from '@/hooks/useShows';
 import { useSeatsForShow, Seat } from '@/hooks/useSeats';
 import { useAuth } from '@/hooks/useAuth';
 import { usePaystack } from '@/hooks/usePaystack';
+import { PromoCode, calculateDiscount } from '@/hooks/usePromoCodes';
 import { getShowStatus } from '@/types/show';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Clock, ArrowLeft, ShoppingCart, Ticket, Loader2, Armchair } from 'lucide-react';
@@ -28,11 +31,14 @@ const ShowDetail = () => {
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectionMode, setSelectionMode] = useState<'tier' | 'seat'>('tier');
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
 
   const hasSeatingLayout = seats.length > 0;
 
   const status = show ? getShowStatus(show) : 'passed';
   const isAvailable = status === 'available';
+  const isSoldOut = status === 'soldout';
 
   // Calculate totals based on selection mode
   const { totalItems, totalAmount, selectedSeatDetails } = useMemo(() => {
@@ -81,6 +87,17 @@ const ShowDetail = () => {
       return [...prev, seatId];
     });
   };
+
+  const handlePromoApply = (promo: PromoCode | null, discount: number) => {
+    setAppliedPromo(promo);
+    setPromoDiscount(discount);
+  };
+
+  // Recalculate promo discount when subtotal changes
+  const currentPromoDiscount = useMemo(() => {
+    if (!appliedPromo) return 0;
+    return calculateDiscount(appliedPromo, totalAmount);
+  }, [appliedPromo, totalAmount]);
 
   const handleCheckout = async () => {
     if (totalItems === 0) {
@@ -134,7 +151,8 @@ const ShowDetail = () => {
         tierPrice = tier.price;
       }
 
-      const amount = totalAmount * 1.05; // Including 5% service fee
+      const discountedAmount = totalAmount - currentPromoDiscount;
+      const amount = discountedAmount * 1.05; // Including 5% service fee
 
       const result = await initializePayment({
         email: user.email || '',
@@ -409,6 +427,16 @@ const ShowDetail = () => {
                       })
                     )}
 
+                    {/* Promo Code Input */}
+                    <div className="border-t border-border pt-4">
+                      <PromoCodeInput
+                        showId={show.id}
+                        subtotal={totalAmount}
+                        onApply={handlePromoApply}
+                        appliedPromo={appliedPromo}
+                      />
+                    </div>
+
                     <div className="border-t border-border pt-4">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Subtotal</span>
@@ -416,10 +444,18 @@ const ShowDetail = () => {
                           ₦{totalAmount.toLocaleString()}
                         </span>
                       </div>
+                      {currentPromoDiscount > 0 && (
+                        <div className="flex justify-between mt-2 text-primary">
+                          <span>Discount</span>
+                          <span className="font-medium">
+                            -₦{currentPromoDiscount.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between mt-2">
                         <span className="text-muted-foreground">Service Fee (5%)</span>
                         <span className="text-foreground font-medium">
-                          ₦{Math.round(totalAmount * 0.05).toLocaleString()}
+                          ₦{Math.round((totalAmount - currentPromoDiscount) * 0.05).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -428,7 +464,7 @@ const ShowDetail = () => {
                       <div className="flex justify-between text-lg font-bold">
                         <span className="text-foreground">Total</span>
                         <span className="gradient-text">
-                          ₦{Math.round(totalAmount * 1.05).toLocaleString()}
+                          ₦{Math.round((totalAmount - currentPromoDiscount) * 1.05).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -454,6 +490,16 @@ const ShowDetail = () => {
                     </>
                   )}
                 </Button>
+
+                {/* Waitlist button for sold out shows */}
+                {isSoldOut && (
+                  <WaitlistButton
+                    showId={show.id}
+                    showTitle={show.title}
+                    variant="outline"
+                    className="w-full mt-3"
+                  />
+                )}
 
                 <p className="text-xs text-muted-foreground text-center mt-4">
                   Secure payment powered by Paystack
