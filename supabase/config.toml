@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.transfer-ticket]
 verify_jwt = true
+
+[functions.notify-waitlist]
+verify_jwt = true
