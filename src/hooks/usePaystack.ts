@@ -8,11 +8,13 @@ interface InitializePaymentParams {
   ticketTierId: string;
   quantity: number;
   seatIds?: string[];
+  promoCodeId?: string;
+  discountAmount?: number;
 }
 
 export const usePaystack = () => {
   const initializePayment = async (params: InitializePaymentParams) => {
-    const { email, amount, showId, ticketTierId, quantity, seatIds } = params;
+    const { email, amount, showId, ticketTierId, quantity, seatIds, promoCodeId, discountAmount } = params;
     
     const callback_url = `${window.location.origin}/payment/verify`;
 
@@ -31,6 +33,8 @@ export const usePaystack = () => {
         quantity,
         callback_url,
         seatIds,
+        promoCodeId,
+        discountAmount,
       },
     });
 

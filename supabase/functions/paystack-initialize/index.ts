@@ -14,6 +14,8 @@ interface PaystackInitRequest {
   quantity: number;
   callback_url: string;
   seatIds?: string[];
+  promoCodeId?: string;
+  discountAmount?: number;
 }
 
 serve(async (req: Request) => {
@@ -45,7 +47,7 @@ serve(async (req: Request) => {
     }
 
     const body: PaystackInitRequest = await req.json();
-    const { email, amount, showId, ticketTierId, quantity, callback_url, seatIds } = body;
+    const { email, amount, showId, ticketTierId, quantity, callback_url, seatIds, promoCodeId, discountAmount } = body;
 
     // Validate the ticket tier exists and has enough quantity
     const { data: tier, error: tierError } = await supabase
@@ -95,7 +97,7 @@ serve(async (req: Request) => {
     // Generate unique reference
     const reference = `SH-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // Create pending order with seat_ids
+    // Create pending order with seat_ids and promo code
     const { error: orderError } = await supabase.from("orders").insert({
       user_id: user.id,
       show_id: showId,
@@ -105,6 +107,8 @@ serve(async (req: Request) => {
       payment_status: "pending",
       reference,
       seat_ids: seatIds || [],
+      promo_code_id: promoCodeId || null,
+      discount_amount: discountAmount || 0,
     });
 
     if (orderError) {

@@ -11,7 +11,7 @@ export interface PromoCode {
   max_uses: number | null;
   current_uses: number;
   show_id: string | null;
-  min_purchase_amount: number;
+  min_purchase_amount: number | null;
   valid_from: string;
   valid_until: string | null;
   is_active: boolean;
@@ -77,8 +77,9 @@ export const useValidatePromoCode = () => {
       }
 
       // Check minimum purchase
-      if (amount < promo.min_purchase_amount) {
-        throw new Error(`Minimum purchase of ₦${promo.min_purchase_amount.toLocaleString()} required`);
+      const minAmount = promo.min_purchase_amount || 0;
+      if (amount < minAmount) {
+        throw new Error(`Minimum purchase of ₦${minAmount.toLocaleString()} required`);
       }
 
       return promo;

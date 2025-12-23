@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { VenueLayoutManager } from '@/components/admin/VenueLayoutManager';
 import { PromoCodeManager } from '@/components/admin/PromoCodeManager';
+import { PromoCodeAnalytics } from '@/components/admin/PromoCodeAnalytics';
 import { ShowForm, ShowFormData } from '@/components/admin/ShowForm';
 
 const Admin = () => {
@@ -324,8 +325,9 @@ const Admin = () => {
               <VenueLayoutManager />
             </TabsContent>
 
-            <TabsContent value="promos">
+            <TabsContent value="promos" className="space-y-8">
               <PromoCodeManager />
+              <PromoCodeAnalytics />
             </TabsContent>
 
             <TabsContent value="users">
