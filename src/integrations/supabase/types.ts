@@ -19,8 +19,10 @@ export type Database = {
           checked_in: boolean
           checked_in_at: string | null
           created_at: string
+          discount_amount: number | null
           id: string
           payment_status: string
+          promo_code_id: string | null
           qr_code: string | null
           quantity: number
           reference: string
@@ -34,8 +36,10 @@ export type Database = {
           checked_in?: boolean
           checked_in_at?: string | null
           created_at?: string
+          discount_amount?: number | null
           id?: string
           payment_status?: string
+          promo_code_id?: string | null
           qr_code?: string | null
           quantity: number
           reference: string
@@ -49,8 +53,10 @@ export type Database = {
           checked_in?: boolean
           checked_in_at?: string | null
           created_at?: string
+          discount_amount?: number | null
           id?: string
           payment_status?: string
+          promo_code_id?: string | null
           qr_code?: string | null
           quantity?: number
           reference?: string
@@ -61,6 +67,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_show_id_fkey"
             columns: ["show_id"]

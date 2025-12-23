@@ -161,6 +161,8 @@ const ShowDetail = () => {
         ticketTierId,
         quantity,
         seatIds,
+        promoCodeId: appliedPromo?.id,
+        discountAmount: currentPromoDiscount,
       });
 
       if (result?.authorization_url) {
