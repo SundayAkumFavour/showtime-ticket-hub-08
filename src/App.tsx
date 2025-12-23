@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -27,11 +27,14 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/shows" element={<Shows />} />
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/payment/verify" element={<PaymentVerify />} />
             <Route path="/auth" element={<Auth />} />
+            
+            {/* User protected routes */}
             <Route
               path="/dashboard"
               element={
@@ -48,8 +51,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            
+            {/* Admin protected routes - all under /admin/* */}
             <Route
               path="/admin"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
+            <Route
+              path="/admin/dashboard"
               element={
                 <ProtectedRoute requireAdmin>
                   <Admin />
@@ -57,7 +66,7 @@ const App = () => (
               }
             />
             <Route
-              path="/scanner"
+              path="/admin/scanner"
               element={
                 <ProtectedRoute requireAdmin>
                   <TicketScanner />
@@ -65,13 +74,15 @@ const App = () => (
               }
             />
             <Route
-              path="/analytics"
+              path="/admin/analytics"
               element={
                 <ProtectedRoute requireAdmin>
                   <Analytics />
                 </ProtectedRoute>
               }
             />
+            
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

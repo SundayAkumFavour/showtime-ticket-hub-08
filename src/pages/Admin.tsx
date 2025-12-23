@@ -19,6 +19,7 @@ import {
   Scan,
   BarChart3,
   Tag,
+  Bell,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -34,6 +35,7 @@ import { UserManagement } from '@/components/admin/UserManagement';
 import { VenueLayoutManager } from '@/components/admin/VenueLayoutManager';
 import { PromoCodeManager } from '@/components/admin/PromoCodeManager';
 import { PromoCodeAnalytics } from '@/components/admin/PromoCodeAnalytics';
+import { WaitlistManager } from '@/components/admin/WaitlistManager';
 import { ShowForm, ShowFormData } from '@/components/admin/ShowForm';
 
 const Admin = () => {
@@ -110,16 +112,17 @@ const Admin = () => {
                   <TabsTrigger value="shows">Shows</TabsTrigger>
                   <TabsTrigger value="venues">Venue Layouts</TabsTrigger>
                   <TabsTrigger value="promos">Promo Codes</TabsTrigger>
+                  <TabsTrigger value="waitlist">Waitlist</TabsTrigger>
                   <TabsTrigger value="users">Users</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
-                  <Link to="/analytics">
+                  <Link to="/admin/analytics">
                     <Button variant="outline">
                       <BarChart3 className="w-4 h-4 mr-2" />
                       Analytics
                     </Button>
                   </Link>
-                  <Link to="/scanner">
+                  <Link to="/admin/scanner">
                     <Button variant="outline">
                       <Scan className="w-4 h-4 mr-2" />
                       Ticket Scanner
@@ -328,6 +331,10 @@ const Admin = () => {
             <TabsContent value="promos" className="space-y-8">
               <PromoCodeManager />
               <PromoCodeAnalytics />
+            </TabsContent>
+
+            <TabsContent value="waitlist">
+              <WaitlistManager />
             </TabsContent>
 
             <TabsContent value="users">

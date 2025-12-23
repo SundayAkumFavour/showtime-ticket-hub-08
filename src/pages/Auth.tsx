@@ -29,18 +29,28 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
-  const from = location.state?.from?.pathname || '/dashboard';
-
+  // Redirect based on role when user is already logged in
   useEffect(() => {
-    if (user) {
-      navigate(from, { replace: true });
+    if (!loading && user) {
+      // Check if there's a specific destination from ProtectedRoute
+      const from = location.state?.from?.pathname;
+      
+      // If user is admin, redirect to admin dashboard
+      // If user is regular user, redirect to user dashboard
+      if (isAdmin) {
+        navigate(from?.startsWith('/admin') ? from : '/admin/dashboard', { replace: true });
+      } else {
+        // Regular users should go to dashboard, never to admin routes
+        const destination = from && !from.startsWith('/admin') ? from : '/dashboard';
+        navigate(destination, { replace: true });
+      }
     }
-  }, [user, navigate, from]);
+  }, [user, isAdmin, loading, navigate, location.state]);
 
   const validateForm = () => {
     setErrors({});
@@ -89,6 +99,7 @@ const Auth = () => {
             title: 'Welcome back!',
             description: 'You have successfully logged in.',
           });
+          // Redirect will happen via useEffect when user state updates
         }
       } else {
         const { error } = await signUp(email, password, fullName);
@@ -111,12 +122,22 @@ const Auth = () => {
             title: 'Account created!',
             description: 'Welcome to ShowTix! You can now browse and purchase tickets.',
           });
+          // Redirect will happen via useEffect when user state updates
         }
       }
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-primary text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
