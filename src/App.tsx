@@ -12,7 +12,11 @@ import Dashboard from "./pages/Dashboard";
 import OrderHistory from "./pages/OrderHistory";
 import TicketScanner from "./pages/TicketScanner";
 import Analytics from "./pages/Analytics";
-import Admin from "./pages/Admin";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminShows from "./pages/admin/Shows";
+import AdminOrders from "./pages/admin/Orders";
+import AdminUsers from "./pages/admin/Users";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PaymentVerify from "./pages/PaymentVerify";
@@ -33,7 +37,7 @@ const App = () => (
             <Route path="/show/:id" element={<ShowDetail />} />
             <Route path="/payment/verify" element={<PaymentVerify />} />
             <Route path="/auth" element={<Auth />} />
-            
+
             {/* User protected routes */}
             <Route
               path="/dashboard"
@@ -51,8 +55,8 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            
-            {/* Admin protected routes - all under /admin/* */}
+
+            {/* Admin protected routes */}
             <Route
               path="/admin"
               element={<Navigate to="/admin/dashboard" replace />}
@@ -61,7 +65,39 @@ const App = () => (
               path="/admin/dashboard"
               element={
                 <ProtectedRoute requireAdmin>
-                  <Admin />
+                  <AdminLayout>
+                    <AdminDashboard />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/shows"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminLayout>
+                    <AdminShows />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/orders"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminLayout>
+                    <AdminOrders />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminLayout>
+                    <AdminUsers />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             />
@@ -69,7 +105,9 @@ const App = () => (
               path="/admin/scanner"
               element={
                 <ProtectedRoute requireAdmin>
-                  <TicketScanner />
+                  <AdminLayout>
+                    <TicketScanner />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             />
@@ -77,11 +115,13 @@ const App = () => (
               path="/admin/analytics"
               element={
                 <ProtectedRoute requireAdmin>
-                  <Analytics />
+                  <AdminLayout>
+                    <Analytics />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             />
-            
+
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>

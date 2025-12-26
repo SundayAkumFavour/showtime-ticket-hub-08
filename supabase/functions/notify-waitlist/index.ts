@@ -18,13 +18,42 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // 1. Verify User Authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing Authorization header');
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      throw new Error('Unauthorized');
+    }
+
+    // 2. Verify Admin Role
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .single();
+
+    if (roleError || !roleData) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden: Admin access required' }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { showId } = await req.json();
 
     if (!showId) {
       throw new Error("Show ID is required");
     }
 
-    console.log(`Notifying waitlist for show: ${showId}`);
+    console.log(`Notifying waitlist for show: ${showId} (Admin: ${user.email})`);
 
     // Get show details
     const { data: show, error: showError } = await supabase
@@ -123,9 +152,13 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error notifying waitlist:", errorMessage);
+
+    // Return 401/403 for auth errors if sensible, but generic 500 is often safer info-wise unless specific
+    const status = errorMessage === 'Unauthorized' ? 401 : 500;
+
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 });

@@ -112,7 +112,7 @@ serve(async (req: Request) => {
     // Update order status with QR code
     const { error: updateOrderError } = await supabase
       .from("orders")
-      .update({ 
+      .update({
         payment_status: "completed",
         qr_code: qrCode,
       })
@@ -137,17 +137,15 @@ serve(async (req: Request) => {
 
     // Update ticket tier sold count (only for non-seat purchases)
     if (!order.seat_ids || order.seat_ids.length === 0) {
-      const { data: tier, error: tierError } = await supabase
-        .from("ticket_tiers")
-        .select("sold")
-        .eq("id", order.ticket_tier_id)
-        .single();
+      const { error: rpcError } = await supabase
+        .rpc('increment_ticket_sold', {
+          tier_id: order.ticket_tier_id,
+          quantity: order.quantity
+        });
 
-      if (!tierError && tier) {
-        await supabase
-          .from("ticket_tiers")
-          .update({ sold: tier.sold + order.quantity })
-          .eq("id", order.ticket_tier_id);
+      if (rpcError) {
+        console.error("Error incrementing ticket count:", rpcError);
+        // We log but don't fail the verification as payment is already successful
       }
     }
 
@@ -169,7 +167,7 @@ serve(async (req: Request) => {
         .order("seat_number");
 
       if (seats && seats.length > 0) {
-        seatInfo = seats.map((s: { row_label: string; seat_number: number }) => 
+        seatInfo = seats.map((s: { row_label: string; seat_number: number }) =>
           `${s.row_label}${s.seat_number}`
         ).join(", ");
       }

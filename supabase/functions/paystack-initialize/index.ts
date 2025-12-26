@@ -41,7 +41,7 @@ serve(async (req: Request) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
+
     if (userError || !user) {
       throw new Error("Invalid user token");
     }
@@ -52,12 +52,21 @@ serve(async (req: Request) => {
     // Validate the ticket tier exists and has enough quantity
     const { data: tier, error: tierError } = await supabase
       .from("ticket_tiers")
-      .select("*")
+      .select("*, shows (date, time)")
       .eq("id", ticketTierId)
       .single();
 
     if (tierError || !tier) {
       throw new Error("Ticket tier not found");
+    }
+
+    // Check if show has passed
+    if (tier.shows) {
+      // @ts-ignore
+      const showDateTime = new Date(`${tier.shows.date}T${tier.shows.time}`);
+      if (showDateTime < new Date()) {
+        throw new Error("This show has passed and cannot accept new purchases");
+      }
     }
 
     // If seatIds provided, validate seats are available
