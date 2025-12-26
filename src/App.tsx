@@ -16,6 +16,12 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import PaymentVerify from "./pages/PaymentVerify";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminShows from "./pages/admin/AdminShows";
+import AdminShowCreate from "./pages/admin/AdminShowCreate";
+import AdminShowEdit from "./pages/admin/AdminShowEdit";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminRevenue from "./pages/admin/AdminRevenue";
 
 const queryClient = new QueryClient();
 
@@ -35,52 +41,20 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             
             {/* User protected routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/orders"
-              element={
-                <ProtectedRoute>
-                  <OrderHistory />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/orders" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             
-            {/* Admin protected routes - all under /admin/* */}
-            <Route
-              path="/admin"
-              element={<Navigate to="/admin/dashboard" replace />}
-            />
-            <Route
-              path="/admin/dashboard"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/scanner"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <TicketScanner />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <Analytics />
-                </ProtectedRoute>
-              }
-            />
+            {/* Admin protected routes */}
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/shows" element={<ProtectedRoute requireAdmin><AdminShows /></ProtectedRoute>} />
+            <Route path="/admin/shows/create" element={<ProtectedRoute requireAdmin><AdminShowCreate /></ProtectedRoute>} />
+            <Route path="/admin/shows/:id/edit" element={<ProtectedRoute requireAdmin><AdminShowEdit /></ProtectedRoute>} />
+            <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
+            <Route path="/admin/revenue" element={<ProtectedRoute requireAdmin><AdminRevenue /></ProtectedRoute>} />
+            <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><Analytics /></ProtectedRoute>} />
+            <Route path="/admin/scanner" element={<ProtectedRoute requireAdmin><TicketScanner /></ProtectedRoute>} />
+            <Route path="/admin/manage" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
